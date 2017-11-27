@@ -1,0 +1,10 @@
+﻿using UnityEngine;
+
+public class ExcelDataInit
+{
+    public static void Init()
+    {
+		$ResourcesScriptObject$
+        Resources.UnloadUnusedAssets();
+    }
+}
