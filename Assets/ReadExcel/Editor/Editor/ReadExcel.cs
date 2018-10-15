@@ -22,10 +22,9 @@ public class ReadExcel : EditorWindow
     private readonly Dictionary<string, List<DataInfo>> dataTitleDic = new Dictionary<string, List<DataInfo>>(); //titledata
     private readonly ExcelFile excelFile = new ExcelFile(); //exceldata
     private readonly List<SheetInfo> sheetList = new List<SheetInfo>();
-    private Dictionary<string,Vector2> scrollVeiwDic=new Dictionary<string, Vector2>();
-    private string scriptName=String.Empty;
+    private Dictionary<string, Vector2> scrollVeiwDic = new Dictionary<string, Vector2>();
+    private string scriptName = String.Empty;
     private bool isSeparated;
-
     private void OnGUI()
     {
         GUILayout.Label("This My  Read Excel Window", EditorStyles.boldLabel);
@@ -39,13 +38,13 @@ public class ReadExcel : EditorWindow
         GUILayout.Label("FilePath", GUILayout.Width(70));
         GUILayout.Label(excelFile.filePath);
         GUILayout.EndHorizontal();
-        
+
         GUILayout.Space(10);
 
         GUILayout.BeginHorizontal("Box");
         GUILayout.Label("ScriptName", GUILayout.Width(100));
         scriptName = GUILayout.TextField(scriptName);
-        EditorPrefs.SetString(excelFile.filePath + excelFile.fileName + "ScriptName",scriptName);
+        EditorPrefs.SetString(excelFile.filePath + excelFile.fileName + "ScriptName", scriptName);
         GUILayout.EndHorizontal();
 
         GUILayout.Space(10);
@@ -75,7 +74,7 @@ public class ReadExcel : EditorWindow
 
         GUILayout.BeginHorizontal("Box");
         isSeparated = GUILayout.Toggle(isSeparated, "Is Separate The Sheet?");
-        EditorPrefs.SetBool(excelFile.filePath + excelFile.fileName + "isSeparated",isSeparated);
+        EditorPrefs.SetBool(excelFile.filePath + excelFile.fileName + "isSeparated", isSeparated);
         GUILayout.EndHorizontal();
 
         GUILayout.Label("This  Excel Sheet List", EditorStyles.boldLabel);
@@ -105,7 +104,7 @@ public class ReadExcel : EditorWindow
                 continue;
             }
             var dataTitleList = dataTitleDic[key.name];
-            
+
             //show data title list
             GUILayout.Space(10);
             var format = string.Format("This {0} Sheet data title List", key.name);
@@ -135,9 +134,13 @@ public class ReadExcel : EditorWindow
                     dataTitleList[i].isEnable);
                 GUILayout.Toggle(dataTitleList[i].isArray, "", GUILayout.Width(60));
                 dataTitleList[i].type =
-                    (ValueType) EditorGUILayout.EnumPopup(dataTitleList[i].type, GUILayout.Width(120));
-                EditorPrefs.SetInt(excelFile.filePath + ".type." + dataTitleList[i].titleName,
-                    (int) dataTitleList[i].type);
+                    (ValueType)EditorGUILayout.EnumPopup(dataTitleList[i].type, GUILayout.Width(120));
+                if (EditorPrefs.GetInt(excelFile.filePath + key.name+ ".type." +dataTitleList[i].titleName,5000) < 5000)
+                {
+                    EditorPrefs.SetInt(excelFile.filePath + key.name+ ".type." + dataTitleList[i].titleName,
+                                       (int)dataTitleList[i].type);
+                }
+                // Debug.Log("EditorPrefs.GetInt(excelFile.filePath + key.name+ .type. + dataTitleList[i].titleName:"+EditorPrefs.GetInt(excelFile.filePath + key.name+ ".type." + dataTitleList[i].titleName));
                 GUILayout.Space(10);
                 GUILayout.Label(dataTitleList[i].desc, GUILayout.Width(250));
                 dataTitleList[i].titleName = GUILayout.TextField(dataTitleList[i].titleName);
@@ -159,7 +162,7 @@ public class ReadExcel : EditorWindow
     public static void ReadExcelMethod()
     {
         var myWindow = GetWindow<ReadExcel>();
-       
+
         foreach (var obj in Selection.objects)
         {
             myWindow.excelFile.filePath = AssetDatabase.GetAssetPath(obj);
@@ -192,7 +195,7 @@ public class ReadExcel : EditorWindow
                     sheetInfo.isEnable =
                         EditorPrefs.GetBool(myWindow.excelFile.filePath + sheetInfo.name + "SheetEnable", true);
                     myWindow.sheetList.Add(sheetInfo);
-                    myWindow.scrollVeiwDic.Add(sheetInfo.name,Vector2.zero);
+                    myWindow.scrollVeiwDic.Add(sheetInfo.name, Vector2.zero);
                     // set datatitle list
                     var sheetOne = book.GetSheetAt(j);
                     var title = sheetOne.GetRow(0); //first row is property
@@ -205,20 +208,25 @@ public class ReadExcel : EditorWindow
                     var dataList = new List<DataInfo>();
                     for (int i = 0, iMax = title.Cells.Count; i < iMax; i++)
                     {
-                        var data = new DataInfo();
-                        data.titleName = title.Cells[i].ToString();
-                        data.desc = descRow.Cells[i].ToString();
-                        data.isArray = data.titleName.Contains("[]");
-                        if (data.isArray)
-                        {
-                            data.titleName = data.titleName.Replace("[]", "");
-                        }
-                        data.isEnable = EditorPrefs.GetBool(myWindow.excelFile.filePath + data.titleName + "isEnable",
-                            true);
-                        var cell = dataRow.Cells[i];
 
-                        data = SetDataType(cell, data, myWindow);
-                        dataList.Add(data);
+                        if (!string.IsNullOrEmpty(title.Cells[i].ToString()))
+                        {
+                            var data = new DataInfo();
+                            data.titleName = title.Cells[i].ToString();
+                            data.desc = descRow.Cells[i].ToString();
+                            data.isArray = data.titleName.Contains("[]");
+                            if (data.isArray)
+                            {
+                                data.titleName = data.titleName.Replace("[]", "");
+                            }
+                            data.isEnable = EditorPrefs.GetBool(myWindow.excelFile.filePath + data.titleName + "isEnable",
+                                true);
+                            var cell = dataRow.Cells[i];
+
+                            data = SetDataType(cell, data, myWindow);
+                            dataList.Add(data);
+                        }
+
                     }
                     myWindow.dataTitleDic.Add(sheetOne.SheetName, dataList);
                 }
@@ -235,22 +243,31 @@ public class ReadExcel : EditorWindow
     /// <returns></returns>
     private static DataInfo SetDataType(ICell cell, DataInfo data, ReadExcel myWindow)
     {
+        // Debug.Log("<color=red>"+myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName+"</color>");
         if (cell.CellType != CellType.Unknown && cell.CellType != CellType.Blank)
         {
+            if (EditorPrefs.GetInt(myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName, 20) != 20)
+            {
+                data.type = (ValueType)EditorPrefs.GetInt(myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName);
+                return data;
+            }
+            data.type = ValueType.STRING;
+            EditorPrefs.SetInt(myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName, (int)ValueType.STRING);
+
             try
             {
-                data.type =
-                    (ValueType)
-                        EditorPrefs.GetInt(myWindow.excelFile.filePath + ".type." + data.titleName,
-                            (int) ValueType.STRING);
+                // Debug.Log("int:" + cell.ToString());
+                int.Parse(cell.ToString());
+                data.type = ValueType.INT;
+                EditorPrefs.SetInt(myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName, (int)ValueType.INT);
                 if (data.isArray)
                 {
                     try
                     {
-                        data.type =
-                            (ValueType)
-                                EditorPrefs.GetInt(myWindow.excelFile.filePath + ".type." + data.titleName,
-                                    (int) ValueType.INT);
+                        var datas = cell.ToString().Split(',');
+                        int.Parse(datas[0]);
+                        data.type = ValueType.INT;
+                        EditorPrefs.SetInt(myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName, (int)ValueType.INT);
                     }
                     catch
                     {
@@ -260,22 +277,12 @@ public class ReadExcel : EditorWindow
             catch
             {
             }
+
             try
             {
-                data.type =
-                    (ValueType)
-                        EditorPrefs.GetInt(myWindow.excelFile.filePath + ".type." + data.titleName,
-                            (int) ValueType.INT);
-            }
-            catch
-            {
-            }
-            try
-            {
-                data.type =
-                    (ValueType)
-                        EditorPrefs.GetInt(myWindow.excelFile.filePath + ".type." + data.titleName,
-                            (int) ValueType.BOOL);
+                bool.Parse(cell.ToString());
+                data.type = ValueType.BOOL;
+                EditorPrefs.SetInt(myWindow.excelFile.filePath+cell.Sheet.SheetName + ".type." + data.titleName, (int)ValueType.BOOL);
             }
             catch
             {
@@ -336,7 +343,7 @@ public class ReadExcel : EditorWindow
             {
                 if (item.isEnable)
                 {
-                    sheetEnum.AppendLine( item.name + ",");
+                    sheetEnum.AppendLine(item.name + ",");
                 }
             }
             foreach (var sheet in sheetList)
@@ -349,7 +356,7 @@ public class ReadExcel : EditorWindow
                     sb.Replace("$Types$", param.ToString());
                     sb.Replace("$ExcelData$", scriptName);
                     sb.Replace("$SheetName$", sheetEnum.ToString());
-                    File.WriteAllText("Assets/ReadExcel/Config/Resources/DataEntity/" + scriptName +  ".cs",
+                    File.WriteAllText("Assets/ReadExcel/Config/Resources/DataEntity/" + scriptName + ".cs",
                         sb.ToString());
                     return;
                 }
@@ -546,7 +553,7 @@ public class ReadExcel : EditorWindow
 
             #endregion
         }
-        return builder; 
+        return builder;
     }
 
     private class ExcelFile
@@ -579,7 +586,7 @@ public class ReadExcel : EditorWindow
         DOUBLE
     }
 
-    public  static void CreatDataInitCs()
+    public static void CreatDataInitCs()
     {
         var scriptObjs = Directory.GetFiles("Assets/ReadExcel/Config/Resources/DataConfig/", "*.asset");
         var scriptEntity = Directory.GetFiles("Assets/ReadExcel/Config/Resources/DataEntity/", "*.cs");
@@ -590,8 +597,8 @@ public class ReadExcel : EditorWindow
         var replaceSB = new StringBuilder();
         for (int i = 0, iMax = scriptObjs.Length; i < iMax; i++)
         {
-            replaceSB.AppendFormat(" Resources.Load<{0}>(\"DataConfig/{1}\").SetDic();",
-                scriptEntity[i], Path.GetFileNameWithoutExtension(scriptObjs[i]));
+            replaceSB.AppendLine(string.Format(" Resources.Load<{0}>(\"DataConfig/{1}\").SetDic();",
+                scriptEntity[i], Path.GetFileNameWithoutExtension(scriptObjs[i])));
         }
         var sb = new StringBuilder(File.ReadAllText("Assets/ReadExcel/Editor/Editor/ExcelDataInit.txt"));
         sb.Replace("$ResourcesScriptObject$", replaceSB.ToString());
